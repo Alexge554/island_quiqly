@@ -36,6 +36,8 @@ void runIntegrationTests(){
     selectPage(Page::Tools);saveTestRender(L"work/capsule-tools.png");
     forcedTestTheme=1;theme();saveTestRender(L"work/capsule-tools-dark.png");selectPage(Page::Notes);saveTestRender(L"work/capsule-notes-dark.png");forcedTestTheme=-1;theme();selectPage(Page::Tools);
     SetWindowTextW(minutesBox,L"0");SetWindowTextW(secondsBox,L"30");toggleTimer();assert(countdown.state==Countdown::Running&&!IsWindowEnabled(minutesBox));toggleTimer();assert(countdown.state==Countdown::Paused);toggleTimer();assert(countdown.state==Countdown::Running);SendMessageW(win,WM_COMMAND,RESET,0);assert(countdown.state==Countdown::Idle);
+    SetWindowTextW(minutesBox,L"");SetWindowTextW(secondsBox,L"30");toggleTimer();assert(countdown.state==Countdown::Running);assert(countdown.remaining(GetTickCount64())<=30000&&countdown.remaining(GetTickCount64())>29000);countdown.reset();syncTimer();
+    unsigned value=99;SetWindowTextW(secondsBox,L"60");assert(!parseTime(secondsBox,59,value));SetWindowTextW(secondsBox,L"");assert(parseTime(secondsBox,59,value)&&value==0);
     hide();assert(thumbnails.empty()&&!selectedPreview);countdown.start(GetTickCount64()-1000,500);SendMessageW(win,WM_TIMER,DEADLINE_TICK,0);assert(countdown.state==Countdown::Finished&&!shown);
     size_t before=store.shots.size();assert(store.removeShot(0));assert(store.shots.size()==before-1);restored.loadShots();assert(restored.shots.size()==before-1);
     selectPage(Page::Notes);deleteNote();assert(store.notes.size()==1);assert(restored.loadNotes()&&restored.notes.size()==1);

@@ -166,7 +166,7 @@ void complete(){
     }
 }
 bool parseTime(HWND h,unsigned max,unsigned& result){
-    wchar_t value[16];GetWindowTextW(h,value,16);if(!value[0])return false;result=0;
+    wchar_t value[16];GetWindowTextW(h,value,16);result=0;if(!value[0])return true;
     for(auto* p=value;*p;++p){if(*p<L'0'||*p>L'9')return false;result=result*10+(*p-L'0');if(result>max)return false;}return true;
 }
 void toggleTimer(){
@@ -312,6 +312,11 @@ void trayMenu(){
     POINT p;GetCursorPos(&p);SetForegroundWindow(win);int cmd=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,p.x,p.y,0,win,nullptr);DestroyMenu(menu);PostMessageW(win,WM_NULL,0,0);menuOpen=false;
     if(cmd==1)show();else if(cmd==2)hide();else if(cmd==3&&commitNote())DestroyWindow(win);activity();
 }
+LRESULT CALLBACK timerEditProc(HWND h,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR){
+    if(msg==WM_SETFOCUS)PostMessageW(h,EM_SETSEL,0,-1);
+    if(msg==WM_NCDESTROY)RemoveWindowSubclass(h,timerEditProc,id);
+    return DefSubclassProc(h,msg,wp,lp);
+}
 LRESULT CALLBACK proc(HWND h,UINT message,WPARAM wp,LPARAM lp){
     if(message==taskbarMessage&&taskbarMessage){addTray();return 0;}
     switch(message){
@@ -320,6 +325,7 @@ LRESULT CALLBACK proc(HWND h,UINT message,WPARAM wp,LPARAM lp){
         auto child=[&](const wchar_t* cls,const wchar_t* text,DWORD style,int id){return CreateWindowExW(0,cls,text,WS_CHILD|WS_VISIBLE|WS_TABSTOP|style,0,0,0,0,h,(HMENU)(INT_PTR)id,instance,nullptr);};
         slider=child(TRACKBAR_CLASSW,L"Громкость",TBS_HORZ|TBS_NOTICKS,VOL);SendMessageW(slider,TBM_SETRANGE,TRUE,MAKELPARAM(0,100));SendMessageW(slider,TBM_SETPAGESIZE,0,5);
         minutesBox=child(L"EDIT",L"5",ES_NUMBER|ES_CENTER,MINUTES);secondsBox=child(L"EDIT",L"00",ES_NUMBER|ES_CENTER,SECONDS);
+        SetWindowSubclass(minutesBox,timerEditProc,1,0);SetWindowSubclass(secondsBox,timerEditProc,2,0);
         SendMessageW(minutesBox,EM_SETLIMITTEXT,3,0);SendMessageW(secondsBox,EM_SETLIMITTEXT,2,0);
         startButton=child(L"BUTTON",L"Запустить",BS_OWNERDRAW,START);resetButton=child(L"BUTTON",L"Сброс",BS_OWNERDRAW,RESET);hideButton=child(L"BUTTON",L"−",BS_OWNERDRAW,HIDE);
         shotsButton=child(L"BUTTON",L"Скриншоты",BS_OWNERDRAW,SHOTS);notesButton=child(L"BUTTON",L"Заметки",BS_OWNERDRAW,NOTES);toolsButton=child(L"BUTTON",L"Громкость и таймер",BS_OWNERDRAW,TOOLS);
@@ -338,10 +344,10 @@ LRESULT CALLBACK proc(HWND h,UINT message,WPARAM wp,LPARAM lp){
     case WM_PRINTCLIENT:{RECT client;GetClientRect(h,&client);drawSurface((HDC)wp,client);return 0;}
     case WM_ERASEBKGND:return 1;
     case WM_NOTIFY:{auto n=(NMHDR*)lp;if(n->idFrom==VOL&&n->code==NM_CUSTOMDRAW){auto d=(NMCUSTOMDRAW*)lp;
-        if(d->dwDrawStage==CDDS_PREPAINT)return CDRF_NOTIFYITEMDRAW;
+        if(d->dwDrawStage==CDDS_PREPAINT){RECT r;GetClientRect(slider,&r);FillRect(d->hdc,&r,backgroundBrush);return CDRF_NOTIFYITEMDRAW;}
         if(d->dwDrawStage==CDDS_ITEMPREPAINT){
-            if(d->dwItemSpec==TBCD_CHANNEL){RECT track=d->rc;int mid=(track.top+track.bottom)/2;track.top=mid-px(2);track.bottom=mid+px(2);rounded(d->hdc,track,line,4);RECT filled=track;filled.right=track.left+MulDiv(track.right-track.left,(int)SendMessageW(slider,TBM_GETPOS,0,0),100);if(filled.right>filled.left)rounded(d->hdc,filled,accent,4);return CDRF_SKIPDEFAULT;}
-            if(d->dwItemSpec==TBCD_THUMB){Gdiplus::Graphics g(d->hdc);g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);Gdiplus::SolidBrush border(Gdiplus::Color(255,GetRValue(bg),GetGValue(bg),GetBValue(bg))),fill(Gdiplus::Color(255,GetRValue(accent),GetGValue(accent),GetBValue(accent)));int x=(d->rc.left+d->rc.right)/2,y=(d->rc.top+d->rc.bottom)/2;g.FillEllipse(&border,x-px(9),y-px(9),px(18),px(18));g.FillEllipse(&fill,x-px(6),y-px(6),px(12),px(12));return CDRF_SKIPDEFAULT;}
+            if(d->dwItemSpec==TBCD_CHANNEL){RECT r=d->rc;int y=(r.top+r.bottom)/2;r.top=y-px(2);r.bottom=y+px(2);rounded(d->hdc,r,line,4);RECT fill=r;fill.right=r.left+MulDiv(r.right-r.left,(int)SendMessageW(slider,TBM_GETPOS,0,0),100);if(fill.right>fill.left)rounded(d->hdc,fill,accent,4);return CDRF_SKIPDEFAULT;}
+            if(d->dwItemSpec==TBCD_THUMB){Gdiplus::Graphics g(d->hdc);g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);Gdiplus::SolidBrush outer(Gdiplus::Color(255,GetRValue(bg),GetGValue(bg),GetBValue(bg))),inner(Gdiplus::Color(255,GetRValue(accent),GetGValue(accent),GetBValue(accent)));int x=(d->rc.left+d->rc.right)/2,y=(d->rc.top+d->rc.bottom)/2;g.FillEllipse(&outer,x-px(9),y-px(9),px(18),px(18));g.FillEllipse(&inner,x-px(6),y-px(6),px(12),px(12));return CDRF_SKIPDEFAULT;}
         }
     }return 0;}
     case WM_MEASUREITEM:{auto m=(MEASUREITEMSTRUCT*)lp;m->itemHeight=px(48);return TRUE;}
@@ -361,7 +367,7 @@ LRESULT CALLBACK proc(HWND h,UINT message,WPARAM wp,LPARAM lp){
     case WM_CTLCOLOREDIT:SetTextColor((HDC)wp,fg);SetBkColor((HDC)wp,field);return (LRESULT)fieldBrush;
     case WM_CTLCOLORLISTBOX:SetTextColor((HDC)wp,fg);SetBkColor((HDC)wp,bg);return (LRESULT)backgroundBrush;
     case WM_CTLCOLORSTATIC:if((HWND)lp==minutesBox||(HWND)lp==secondsBox||(HWND)lp==noteEdit){SetTextColor((HDC)wp,dim);SetBkColor((HDC)wp,field);return (LRESULT)fieldBrush;}SetBkColor((HDC)wp,bg);return (LRESULT)backgroundBrush;
-    case WM_HSCROLL:if((HWND)lp==slider)setVolume((int)SendMessageW(slider,TBM_GETPOS,0,0));return 0;
+    case WM_HSCROLL:if((HWND)lp==slider){setVolume((int)SendMessageW(slider,TBM_GETPOS,0,0));InvalidateRect(slider,nullptr,TRUE);}return 0;
     case WM_MOUSEWHEEL:{POINT p{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};ScreenToClient(h,&p);if(expanded&&page==Page::Tools&&p.y>=px(compactY(60))&&p.y<=px(compactY(134)))setVolume(lround(volume*100)+(GET_WHEEL_DELTA_WPARAM(wp)>0?2:-2));activity();return 0;}
     case WM_COMMAND:{activity();int id=LOWORD(wp);
         if(id==NOTE_EDIT){if(HIWORD(wp)==EN_CHANGE&&!loadingNote){noteDirty=true;KillTimer(h,NOTE_SAVE);SetTimer(h,NOTE_SAVE,600,nullptr);repaint();}return 0;}
