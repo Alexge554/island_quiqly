@@ -1,0 +1,19 @@
+# Build products and local test data
+*.exe
+*.dll
+*.o
+*.obj
+*.res
+*.zip
+!/downloads/*.zip
+*.tmp
+/work/
+/data/
+/shots/
+notes.dat
+.env
+.env.*
+.vs/
+.vscode/
+Thumbs.db
+Desktop.ini

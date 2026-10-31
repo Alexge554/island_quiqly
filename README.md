@@ -18,6 +18,10 @@ A small native Windows capsule for clipboard images, quick notes, volume and a t
 
 ## Запуск
 
+**[Скачать Island 2.1 для Windows x64](https://github.com/Alexge554/island_quiqly/raw/refs/heads/main/downloads/Island-2.1-Windows-x64.zip)** · [Изменения версии](CHANGELOG.md)
+
+Распакуйте ZIP и откройте папку `Island-2.1`.
+
 Запустите `Island.exe`. Приложение появится в системном трее; автозапуск не включается. Для обновления завершите старый экземпляр через меню значка → **Выход**, затем запустите новую сборку.
 
 | Действие | Управление |
@@ -80,7 +84,7 @@ source/timer_test.cpp       проверки таймера
 source/build.ps1            сборка приложения
 source/test.ps1             сборка и запуск проверок
 docs/USAGE.ru.md            подробная инструкция
+downloads/                  готовая переносимая сборка
 ```
 
 История изменений: [CHANGELOG.md](CHANGELOG.md). Ошибки и предложения можно оформить через Issues, указав версию Windows, масштаб экранов и шаги воспроизведения.
-
